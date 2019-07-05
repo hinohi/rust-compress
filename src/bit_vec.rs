@@ -155,12 +155,21 @@ impl BitVec {
     }
 }
 
-impl From<Vec<bool>> for BitVec
-{
+impl From<Vec<bool>> for BitVec {
     fn from(bits: Vec<bool>) -> BitVec {
         let mut v = BitVec::with_capacity(bits.len());
         for bit in bits {
             v.push(bit);
+        }
+        v
+    }
+}
+
+impl From<&[bool]> for BitVec {
+    fn from(bits: &[bool]) -> BitVec {
+        let mut v = BitVec::with_capacity(bits.len());
+        for bit in bits {
+            v.push(*bit);
         }
         v
     }
