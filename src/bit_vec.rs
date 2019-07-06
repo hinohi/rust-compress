@@ -138,6 +138,33 @@ impl BitVec {
         }
     }
 
+    /// Modes all elements of `other` into `self`, leaving `other` empty.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use rust_compress::bit_vec::BitVec;
+    /// let mut vec: BitVec = vec![true, false, true].into();
+    /// let mut vec2: BitVec = vec![true, true, false].into();
+    /// vec.append(&mut vec2);
+    /// assert_eq!(vec, vec![true, false, true, true, true, false].into());
+    /// assert_eq!(vec2, vec![].into());
+    /// ```
+    pub fn append(&mut self, other: &mut BitVec) {
+        if self.bit == BITS as u8 {
+            self.data.append(&mut other.data);
+            self.bit = other.bit;
+            other.bit = BITS as u8;
+        } else {
+            // FIXME Improve algorithm
+            for value in other.iter() {
+                self.push(value);
+            }
+            other.data.clear();
+            other.bit = BITS as u8;
+        }
+    }
+
     /// Convert into bytes `Vec<u8>`.
     ///
     /// # Examples
@@ -154,6 +181,7 @@ impl BitVec {
         self.data
     }
 
+    /// Make iterator of bit.
     pub fn iter(&self) -> Iter {
         Iter {
             pos: 0,
