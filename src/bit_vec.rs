@@ -153,6 +153,15 @@ impl BitVec {
     pub fn into_bytes(self) -> Vec<u8> {
         self.data
     }
+
+    pub fn iter(&self) -> Iter {
+        Iter {
+            pos: 0,
+            last_bit: self.bit,
+            bit: 0,
+            data: &self.data,
+        }
+    }
 }
 
 impl From<Vec<bool>> for BitVec {
@@ -172,6 +181,29 @@ impl From<&[bool]> for BitVec {
             v.push(*bit);
         }
         v
+    }
+}
+
+pub struct Iter<'a> {
+    pos: usize,
+    last_bit: u8,
+    bit: u8,
+    data: &'a [u8],
+}
+
+impl<'a> Iterator for Iter<'a> {
+    type Item = bool;
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.bit == BITS as u8 || self.pos + 1 == self.data.len() && self.bit == self.last_bit {
+            self.bit = 0;
+            self.pos += 1;
+        }
+        if self.pos == self.data.len() {
+            return None;
+        }
+        let b = (self.data[self.pos] >> self.bit) & 1;
+        self.bit += 1;
+        Some(b == 1)
     }
 }
 
@@ -211,5 +243,18 @@ mod tests {
         let (rest, last) = v.split_rest();
         assert_eq!(rest, vec![true; 8].into());
         assert_eq!(last, vec![true].into());
+    }
+
+    #[test]
+    fn iter() {
+        use std::iter::FromIterator;
+        let b: BitVec = vec![true; 7].into();
+        assert_eq!(vec![true; 7], Vec::from_iter(b.iter()));
+        let b: BitVec = vec![true; 8].into();
+        assert_eq!(vec![true; 8], Vec::from_iter(b.iter()));
+        let b: BitVec = vec![true; 9].into();
+        assert_eq!(vec![true; 9], Vec::from_iter(b.iter()));
+        let b: BitVec = vec![true, false, false, true].into();
+        assert_eq!(vec![true, false, false, true], Vec::from_iter(b.iter()));
     }
 }

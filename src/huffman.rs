@@ -33,23 +33,35 @@ impl Ord for Node {
 }
 
 impl Node {
-    fn walk(&self, map: &mut Vec<BitVec>) {
-        self.walk_node(map, &mut Vec::new());
-    }
-
-    fn walk_node(&self, map: &mut Vec<BitVec>, current: &mut Vec<bool>) {
+    fn make_encoder(&self, map: &mut Vec<BitVec>, current: &mut Vec<bool>) {
         if let Some(value) = self.value {
             map[value] = current.as_slice().into();
         } else {
             if let Some(ref child) = self.left {
                 current.push(true);
-                child.walk_node(map, current);
+                child.make_encoder(map, current);
                 current.pop();
             }
             if let Some(ref child) = self.right {
                 current.push(false);
-                child.walk_node(map, current);
+                child.make_encoder(map, current);
                 current.pop();
+            }
+        }
+    }
+
+    fn make_decoder(&self, map: &mut Vec<DecoderNode>) {
+        if let Some(value) = self.value {
+            map.push(DecoderNode::Value(value));
+        } else {
+            let idx = map.len();
+            map.push(DecoderNode::Jump(0));
+            if let Some(ref child) = self.left {
+                child.make_decoder(map);
+            }
+            map[idx] = DecoderNode::Jump(map.len());
+            if let Some(ref child) = self.right {
+                child.make_decoder(map);
             }
         }
     }
@@ -94,12 +106,18 @@ impl HuffmanTree {
         for _ in 0..self.elements {
             map.push(BitVec::new());
         }
-        self.nodes.walk(&mut map);
+        self.nodes.make_encoder(&mut map, &mut Vec::new());
         HuffmanEncoder { map }
+    }
+
+    pub fn decoder(&self) -> HuffmanDecoder {
+        let mut map = Vec::with_capacity(self.elements * 2 + 1);
+        self.nodes.make_decoder(&mut map);
+        HuffmanDecoder { map }
     }
 }
 
-#[derive(Clone, Eq, PartialEq, Hash)]
+#[derive(Clone, Debug)]
 pub struct HuffmanEncoder {
     map: Vec<BitVec>,
 }
@@ -107,6 +125,37 @@ pub struct HuffmanEncoder {
 impl HuffmanEncoder {
     pub fn encode(&self, value: usize) -> &BitVec {
         self.map.get(value).unwrap()
+    }
+}
+
+#[derive(Clone, Debug)]
+enum DecoderNode {
+    Jump(usize),
+    Value(usize),
+}
+
+#[derive(Clone, Debug)]
+pub struct HuffmanDecoder {
+    map: Vec<DecoderNode>,
+}
+
+impl HuffmanDecoder {
+    pub fn decode<I>(&self, input: &mut I) -> usize
+    where
+        I: Iterator<Item = bool>,
+    {
+        let mut idx = 0;
+        while let DecoderNode::Jump(right) = self.map[idx] {
+            if input.next().unwrap() {
+                idx += 1;
+            } else {
+                idx = right;
+            }
+        }
+        match self.map[idx] {
+            DecoderNode::Value(value) => value,
+            _ => unreachable!(),
+        }
     }
 }
 
@@ -122,5 +171,28 @@ mod tests {
         assert_eq!(encoder.encode(1).len(), 2);
         assert_eq!(encoder.encode(2).len(), 2);
         assert_eq!(encoder.encode(3).len(), 2);
+    }
+
+    #[test]
+    fn encode_2() {
+        let tree = HuffmanTree::new(&[1, 2, 4, 8]);
+        let encoder = tree.encoder();
+        assert_eq!(encoder.encode(0).len(), 3);
+        assert_eq!(encoder.encode(1).len(), 3);
+        assert_eq!(encoder.encode(2).len(), 2);
+        assert_eq!(encoder.encode(3).len(), 1);
+    }
+
+    #[test]
+    fn encode_decode() {
+        let tree = HuffmanTree::new(&[10, 100, 20, 50, 60, 10]);
+        let encoder = tree.encoder();
+        let decoder = tree.decoder();
+        assert_eq!(decoder.decode(&mut encoder.encode(0).iter()), 0);
+        assert_eq!(decoder.decode(&mut encoder.encode(1).iter()), 1);
+        assert_eq!(decoder.decode(&mut encoder.encode(2).iter()), 2);
+        assert_eq!(decoder.decode(&mut encoder.encode(3).iter()), 3);
+        assert_eq!(decoder.decode(&mut encoder.encode(4).iter()), 4);
+        assert_eq!(decoder.decode(&mut encoder.encode(5).iter()), 5);
     }
 }
