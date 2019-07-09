@@ -83,6 +83,22 @@ impl BitVec {
         self.data.len() * BITS + self.bit as usize - BITS
     }
 
+    /// Returns `true` if the vector contains no elements.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use rust_compress::bit_vec::BitVec;
+    /// let mut v = BitVec::new();
+    /// assert!(v.is_empty());
+    ///
+    /// v.push(true);
+    /// assert!(!v.is_empty());
+    /// ```
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     /// Appends an element to the back of a collection.
     ///
     /// # Examples
@@ -209,6 +225,12 @@ impl From<&[bool]> for BitVec {
             v.push(*bit);
         }
         v
+    }
+}
+
+impl Default for BitVec {
+    fn default() -> Self {
+        BitVec::new()
     }
 }
 
